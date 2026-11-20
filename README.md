@@ -1,4 +1,4 @@
-# Hierarchical Emergence Profiles of Human-Derived Dimensions are a Fundamental Property of Deep Neural Networks
+# Layer-Wise Emergence of Human-Derived Object Dimensions in Deep Neural Networks
 
 ## Overview 
 
