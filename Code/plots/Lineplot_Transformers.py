@@ -38,7 +38,10 @@ except Exception:
 sns.set_context('paper', font_scale=1.2)
 sns.set_style('ticks')
 plt.rcParams.update({
-    'font.family': 'arial',
+    'font.family': 'serif',
+    'font.serif': ['cmr10', 'STIXGeneral'],  # matches the serif look of the published figures
+    'mathtext.fontset': 'cm',
+    'axes.formatter.use_mathtext': True,
     'pdf.fonttype': 42,
 })
 
@@ -121,7 +124,10 @@ def plot_transformer_lines(
     ax.set_xticklabels(x, fontsize=6)
     ax.tick_params(axis='x', which='minor', length=0)
     ax.set_ylabel("Mean R$^2$", fontsize=8)
-    ax.set_ylim(bottom=0)
+    ax.set_xlabel("Model Layer", fontsize=8)
+    min_val = min(df_mean[lbl].min() for lbl in labels)
+    if min_val >= -0.02:
+        ax.set_ylim(bottom=0)
     ax.tick_params(axis='both', which='major', labelsize=8)
     ax.legend(frameon=False, prop={'size': 5}, loc='upper left')
 

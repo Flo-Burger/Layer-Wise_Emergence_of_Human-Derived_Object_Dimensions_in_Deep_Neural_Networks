@@ -35,7 +35,10 @@ except Exception:
 
 sns.set_context('paper', font_scale=1.15)
 plt.rcParams.update({
-    'font.family': 'arial',
+    'font.family': 'serif',
+    'font.serif': ['cmr10', 'STIXGeneral'],  # matches the serif look of the published figures
+    'mathtext.fontset': 'cm',
+    'axes.formatter.use_mathtext': True,
     'pdf.fonttype': 42,
     'text.usetex': False,
     'axes.unicode_minus': False,
@@ -45,8 +48,9 @@ plt.rcParams.update({
 FONTSIZE_TITLE = 14
 FONTSIZE_AXIS  = 12
 FONTSIZE_TICK  = 8
+FONTSIZE_DIM_NUM = 5  # smaller than FONTSIZE_TICK: the x-axis has up to 66 crowded dimension numbers
 FONTSIZE_STAR  = 8
-FONTSIZE_ANN   = 11
+FONTSIZE_ANN   = 10
 ALPHA_DEFAULT  = 0.05
 
 # ── Roots resolved like your analysis ──────────────────────────────────────
@@ -171,18 +175,27 @@ def plot_cornet_heatmap(
     n_rows2  = len(layers_RF)
     n_rows3  = len(layers_SR)
 
-    FIG_W = 12 if dataset == "THINGS" else 10
-    FIG_H = max(5.0, 0.23*(n_rows1+n_rows2+n_rows3) + 2.2)
+    # Cell size fixed in inches so every heatmap (any dataset/model) renders
+    # with identical cell geometry; FIG_W/FIG_H are derived from it rather than
+    # guessed, so the axes stack always exactly fills the requested figure size
+    # (no leftover/deficit space for constrained_layout to redistribute as gaps).
+    CELL_IN = 0.17
+    LEFT_MARGIN_IN, RIGHT_MARGIN_IN = 0.55, 1.0
+    TITLE_MARGIN_IN, BOTTOM_MARGIN_IN = 0.42, 1.6
+    FIG_W = n_dims * CELL_IN + LEFT_MARGIN_IN + RIGHT_MARGIN_IN
+    FIG_H = (n_rows1 + n_rows2 + n_rows3) * CELL_IN + 3 * TITLE_MARGIN_IN + BOTTOM_MARGIN_IN
 
     fig, axes = plt.subplots(
         3, 1, figsize=(FIG_W, FIG_H), sharex=True,
-        gridspec_kw={'height_ratios': [n_rows1, n_rows2, n_rows3], 'hspace': 0.20}
+        gridspec_kw={'height_ratios': [n_rows1, n_rows2, n_rows3]},
+        constrained_layout=True
     )
+    fig.get_layout_engine().set(h_pad=0.02, hspace=0.0, w_pad=0.05, wspace=0.0)
 
     # Panel 1: Feedforward R²
     vmin_r2, vmax_r2 = 0.0, 1.0
     mat_feed = df_feed[layers_feed_all].T.values
-    sns.heatmap(mat_feed, ax=axes[0], cmap="RdBu_r", center=0, square=True,
+    sns.heatmap(mat_feed, ax=axes[0], cmap="Reds", square=True,
                 linewidths=0.3, linecolor="white", vmin=vmin_r2, vmax=vmax_r2, cbar=False)
     axes[0].invert_yaxis()
     axes[0].tick_params(axis='both', which='both', length=0)
@@ -237,41 +250,49 @@ def plot_cornet_heatmap(
 
     # Bottom x-axis ticks + default annotations
     if custom_dim_labels is None:
-        custom_dim_labels = (
-            {3: "Animal-related", 13: "Electronic / technology", 23: "Red", 35: "Disgusting / bugs", 46: "Medicine-related"}
-            if dataset == "THINGS" else
-            {1: "Mineral", 24: "Blue colour", 34: "Bumpy"}
-        )
+        if dataset == "THINGS66d":
+            custom_dim_labels = {3: "Animal-related", 12: "Colorful / playful", 24: "Red", 38: "Seating / standing / lying", 57: "Medicine-related"}
+        elif dataset == "THINGS":
+            custom_dim_labels = {3: "Animal-related", 13: "Electronic / technology", 23: "Red", 35: "Disgusting / bugs", 46: "Medicine-related"}
+        else:
+            custom_dim_labels = {1: "Mineral", 24: "Blue colour", 34: "Bumpy"}
     positions = np.arange(n_dims) + 0.5
     dims = np.arange(1, n_dims+1)
     tick_labels = ["" if d in custom_dim_labels else str(d) for d in dims]
     axes[-1].set_xticks(positions)
-    axes[-1].set_xticklabels(tick_labels, rotation=0, fontsize=FONTSIZE_TICK)
-    axes[-1].set_xlabel("Dimension", fontsize=FONTSIZE_AXIS, labelpad=25)
+    axes[-1].set_xticklabels(tick_labels, rotation=0, fontsize=FONTSIZE_DIM_NUM)
     for d, label in custom_dim_labels.items():
         idx = d - 1
         if 0 <= idx < n_dims:
             x = idx + 0.5
             axes[-1].annotate(
                 label, xy=(x, 0), xycoords=('data', 'axes fraction'),
-                xytext=(x, -.2), textcoords=('data', 'axes fraction'),
+                xytext=(0, -22), textcoords='offset points',
                 ha='center', va='top', fontsize=FONTSIZE_ANN, clip_on=False,
                 annotation_clip=False,
                 arrowprops=dict(arrowstyle='->', color='black', lw=0.8,
                                 shrinkA=0, shrinkB=0, clip_on=False)
             )
+    # Placed manually (well below the deepest annotation label) rather than via
+    # set_xlabel/labelpad, which collided with long annotations like "Disgusting / bugs".
+    axes[-1].annotate(
+        "Dimension", xy=(0.5, 0), xycoords='axes fraction',
+        xytext=(0, -46), textcoords='offset points',
+        ha='center', va='top', fontsize=FONTSIZE_AXIS, clip_on=False, annotation_clip=False
+    )
 
-    # Shared colorbars
-    fig.subplots_adjust(left=0.06, right=0.88, top=0.92, bottom=0.18, hspace=0.20)
-    cbar_ax1 = fig.add_axes([0.90, 0.68, 0.014, 0.24])
+    # Shared colorbars — aligned to the actual panels via ax=..., so they can
+    # never extend past the panel(s) they belong to regardless of row counts.
     cbar1 = fig.colorbar(plt.cm.ScalarMappable(norm=plt.Normalize(vmin=vmin_r2, vmax=vmax_r2),
-                                               cmap="RdBu_r"), cax=cbar_ax1)
+                                               cmap="Reds"), ax=axes[0],
+                          fraction=0.05, pad=0.02, aspect=15)
     cbar1.set_label("R$^2$ (panel 1)", fontsize=FONTSIZE_AXIS)
     cbar1.ax.tick_params(labelsize=FONTSIZE_TICK, length=0)
-    cbar_ax2 = fig.add_axes([0.90, 0.15, 0.014, 0.45])
+
     cbar2 = fig.colorbar(plt.cm.ScalarMappable(norm=plt.Normalize(vmin=vmin_diff, vmax=vmax_diff),
-                                               cmap="RdBu_r"), cax=cbar_ax2)
-    cbar2.set_label("$\\Delta R^2$ (panels 2–3)", fontsize=FONTSIZE_AXIS)
+                                               cmap="RdBu_r"), ax=[axes[1], axes[2]],
+                          fraction=0.05, pad=0.02, aspect=30)
+    cbar2.set_label("$\\Delta R^2$ (panels 2$-$3)", fontsize=FONTSIZE_AXIS)
     cbar2.ax.tick_params(labelsize=FONTSIZE_TICK, length=0)
 
     # Output path (same subfolder style as AlexNet)

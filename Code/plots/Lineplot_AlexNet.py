@@ -32,7 +32,10 @@ except Exception:
 sns.set_context('paper', font_scale=1.2)
 sns.set_style('ticks')
 plt.rcParams.update({
-    'font.family': 'arial',
+    'font.family': 'serif',
+    'font.serif': ['cmr10', 'STIXGeneral'],  # matches the serif look of the published figures
+    'mathtext.fontset': 'cm',
+    'axes.formatter.use_mathtext': True,
     'pdf.fonttype': 42,
 })
 
@@ -98,16 +101,23 @@ def plot_alexnet_lines(
         disp = display_labels.get(lbl, lbl)
         ax.plot(x, df_mean[lbl].values, linewidth=2.0, label=disp)
 
-    title = ("DNN Architecture Shapes Material Dimension Encoding"
+    title = ("DNN Training Shapes Material Dimension Encoding"
              if dataset == "STUFF" else
-             "DNN Architecture Shapes Object Dimension Encoding")
+             "DNN Training Shapes Object Dimension Encoding")
     ax.set_title(title, fontsize=10, pad=8)
 
     ax.set_xticks(x)
     ax.set_xticklabels(x, fontsize=6)
     ax.tick_params(axis='x', which='minor', length=0)
     ax.set_ylabel("Mean R$^2$", fontsize=8)
-    ax.set_ylim(bottom=0)
+    ax.set_xlabel("Model Layer", fontsize=8)
+    # R2 is usually >=0 here, but some robustness configs genuinely collapse
+    # below 0 (e.g. unregularised regression at high dimensionality on a small
+    # dataset) -- only clamp the bottom when that headroom isn't needed, so a
+    # real collapse stays visible instead of being clipped out of the axes.
+    min_val = min(df_mean[lbl].min() for lbl in labels)
+    if min_val >= -0.02:
+        ax.set_ylim(bottom=0)
     ax.tick_params(axis='both', which='major', labelsize=8)
     ax.legend(frameon=False, prop={'size': 5}, loc='upper left')
 

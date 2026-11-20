@@ -17,9 +17,8 @@ Two complementary statistics are computed per model:
 
 2. Peak-layer comparison: for each dimension the peak (argmax) layer is found,
    then a two-sided permutation test on the difference of mean peak layers
-   (visual − semantic) is run. Mean peak layers are shown as vertical dashed
-   lines on each panel. This directly addresses whether visual dimensions peak
-   at a different level of the hierarchy than semantic ones.
+   (visual − semantic) is run. This directly addresses whether visual
+   dimensions peak at a different level of the hierarchy than semantic ones.
 
 Dimensions typed as "mix visual-semantic" or "unclear" are excluded from both
 analyses. Their count is printed to the console.
@@ -49,7 +48,10 @@ except Exception:
 sns.set_context('paper', font_scale=1.2)
 sns.set_style('ticks')
 plt.rcParams.update({
-    'font.family': 'arial',
+    'font.family': 'serif',
+    'font.serif': ['cmr10', 'STIXGeneral'],  # matches the serif look of the published figures
+    'mathtext.fontset': 'cm',
+    'axes.formatter.use_mathtext': True,
     'pdf.fonttype': 42,
 })
 
@@ -210,7 +212,7 @@ def _plot_model_subplot(
         ax.errorbar(x, sem_mean, yerr=sem_se, fmt='o', color=SEMANTIC_COLOR,
                     capsize=3, label="Semantic", zorder=3)
         ax.errorbar(x, vis_mean, yerr=vis_se, fmt='o', color=VISUAL_COLOR,
-                    capsize=3, label="Visual", zorder=3)
+                    capsize=3, label="Perceptual", zorder=3)
         ax.axhline(0, color="black", linewidth=0.6, linestyle="--", zorder=0)
         ax.set_xticks([1])
         ax.set_xticklabels([""])
@@ -218,19 +220,11 @@ def _plot_model_subplot(
     else:
         x = np.arange(1, n_layers + 1)
 
-        # Peak-layer markers (behind everything else)
-        if mean_peak_vis is not None and np.isfinite(mean_peak_vis):
-            ax.axvline(mean_peak_vis, color=VISUAL_COLOR, linewidth=1.0,
-                       linestyle='--', alpha=0.55, zorder=0)
-        if mean_peak_sem is not None and np.isfinite(mean_peak_sem):
-            ax.axvline(mean_peak_sem, color=SEMANTIC_COLOR, linewidth=1.0,
-                       linestyle='--', alpha=0.55, zorder=0)
-
         ax.fill_between(x, sem_mean, vis_mean, color=GAP_COLOR, alpha=0.12,
                         linewidth=0, zorder=1)
         for mean, se, color, label in [
             (sem_mean, sem_se, SEMANTIC_COLOR, "Semantic"),
-            (vis_mean, vis_se, VISUAL_COLOR,   "Visual"),
+            (vis_mean, vis_se, VISUAL_COLOR,   "Perceptual"),
         ]:
             ax.plot(x, mean, color=color, linewidth=1.8, label=label, zorder=3)
             ax.fill_between(x, mean - se, mean + se, color=color, alpha=0.2,
@@ -239,6 +233,7 @@ def _plot_model_subplot(
         ax.set_xticks(x)
         ax.set_xticklabels(x, fontsize=6)
         ax.tick_params(axis='x', which='minor', length=0)
+        ax.set_xlabel("Model Layer", fontsize=7)
 
     ax._sv_sig = (np.arange(1, n_layers + 1), sig)
 
